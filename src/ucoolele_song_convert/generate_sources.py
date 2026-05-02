@@ -1,9 +1,8 @@
 import yaml
 from pathlib import Path
 import re
-import os
-import sys
 from datetime import datetime, timezone
+from importlib.resources import files
 
 
 
@@ -18,21 +17,17 @@ def to_var_name(name: str, shortId: str) -> str:
 def to_comment(name: str, shortId: str) -> str:
     return name.strip() + ', Song short ID: ' + shortId.upper()
 
-def get_script_dir():
-    if hasattr(sys, '_getframe') and '__file__' in globals():
-        return os.path.dirname(os.path.abspath(__file__))
-    else:
-        return os.getcwd()  # fallback for interactive mode
+
+def read_template(template_name: str) -> str:
+    return files("ucoolele_song_convert.templates").joinpath(template_name).read_text()
 
 
 # Generator function
 def generateSources(song_blobs, song_metadata):
     assert len(song_blobs) == len(song_metadata), "Mismatched song data and metadata lengths."
 
-    with open(get_script_dir() + '/templates/song_library.h.template') as f:
-        HEADER_TEMPLATE = f.read()
-    with open(get_script_dir() + '/templates/song_library.cpp.template') as f:
-        SOURCE_TEMPLATE = f.read()
+    HEADER_TEMPLATE = read_template("song_library.h.template")
+    SOURCE_TEMPLATE = read_template("song_library.cpp.template")
 
     enum_entries = []
     data_arrays = []
