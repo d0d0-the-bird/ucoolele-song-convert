@@ -12,6 +12,23 @@ specific address divisor but it is better to avoid those for portability.
 At the end of the file there are a few function definitions that provide an interface
 for the songs defined in this file.
 
+Song blob layout is little-endian and consists of a fixed-size header followed by
+an object stream. The header stores unique ID, timestamp, padded song name,
+play style, color tables, reserved bytes, song duration, and object count.
+
+NOTE objects are currently encoded as 16 bytes:
+- uint8_t objectType
+- uint8_t wire
+- uint16_t fret
+- uint8_t noteName
+- uint8_t accidental
+- uint8_t octave
+- uint8_t finger
+- uint32_t startTime_ms
+- uint32_t duration_ms
+
+Object type enum values are defined in firmware and must match the generator.
+
 Build time: {{build_time}}
 Build date: {{build_date}}
 Build timestamp: {{build_timestamp}}

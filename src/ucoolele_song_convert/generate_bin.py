@@ -28,6 +28,12 @@ class NoteAccidental(Enum):
     FLAT = 2
 
 
+class SongObjectType(Enum):
+    NOTE = 0
+    CHORD = 1
+    STRUM = 2
+
+
 def sanitize_string(s, length):
     """Sanitize and pad string to a fixed length."""
     return s.encode("utf-8")[:length].ljust(length, b'\x00')
@@ -35,6 +41,32 @@ def sanitize_string(s, length):
 def scale_color(rgb_float):
     """Convert RGB [0.0–1.0] to [0–255]."""
     return [int(x * 255) for x in rgb_float]
+
+
+# Song blob layout, little-endian:
+# - uniqueId: 32 bytes
+# - timestamp: uint32
+# - name: 64 bytes
+# - songPlayStyle: 16 bytes
+# - fretColorTable: 13 * RGB bytes
+# - fingerColorTable: 5 * RGB bytes
+# - reserved: 2 bytes
+# - songDuration_ms: uint32
+# - object_count: uint32
+# - object data stream
+#
+# NOTE object layout, 16 bytes total:
+# - objectType: uint8
+# - wire: uint8
+# - fret: uint16
+# - name: uint8
+# - accidental: uint8
+# - octave: uint8
+# - finger: uint8
+# - startTime_ms: uint32
+# - duration_ms: uint32
+#
+# Object type enum values must match the firmware definitions.
 
 def generateSongBlob(songData):
 
@@ -65,13 +97,14 @@ def generateSongBlob(songData):
         note for note in songData["objects"]
         if note["type"] == "NOTE"
     ]
-    note_count = struct.pack("<I", len(notes))
+    object_count = struct.pack("<I", len(notes))
 
-    # Prepare note binary data
-    note_bin_data = b""
+    # NOTE objects currently use the BBHBBBBII layout described above.
+    object_bin_data = b""
     for note in notes:
-        note_bin_data += struct.pack(
-            "<HHBBBBII",
+        object_bin_data += struct.pack(
+            "<BBHBBBBII",
+            SongObjectType.NOTE.value,
             note["wire"],
             note["fret"],
             NoteName[note["name"]].value,
@@ -92,8 +125,8 @@ def generateSongBlob(songData):
         b"".join(struct.pack("BBB", *color) for color in finger_color_table),
         reserved,
         song_duration,
-        note_count,
-        note_bin_data
+        object_count,
+        object_bin_data
     ])
 
     return binary_blob
