@@ -42,6 +42,12 @@ CHORD objects are currently encoded as 20 bytes:
 - uint32_t startTime_ms
 - uint32_t duration_ms
 
+STRUM objects are currently encoded as 8 bytes:
+- uint8_t objectType
+- uint8_t direction
+- uint16_t reserved
+- uint32_t startTime_ms
+
 Object type enum values are defined in firmware and must match the generator.
 
 Build time: {{build_time}}

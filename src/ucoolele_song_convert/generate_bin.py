@@ -34,6 +34,11 @@ class SongObjectType(Enum):
     STRUM = 2
 
 
+class StrumDirection(Enum):
+    DOWN = 0
+    UP = 1
+
+
 REQUIRED_SONG_FIELDS = {
     "uniqueId",
     "timestamp",
@@ -97,6 +102,12 @@ def isSongYamlDocument(document):
 # - startTime_ms: uint32
 # - duration_ms: uint32
 #
+# STRUM object layout, 8 bytes total:
+# - objectType: uint8
+# - direction: uint8
+# - reserved: uint16
+# - startTime_ms: uint32
+#
 # Object type enum values must match the firmware definitions.
 
 
@@ -131,6 +142,16 @@ def packChordObject(chord):
         0,
         chord["startTime_ms"],
         chord["duration_ms"],
+    )
+
+
+def packStrumObject(strum):
+    return struct.pack(
+        "<BBHI",
+        SongObjectType.STRUM.value,
+        StrumDirection[strum["direction"]].value,
+        0,
+        strum["startTime_ms"],
     )
 
 def generateSongBlob(songData):
@@ -169,6 +190,7 @@ def generateSongBlob(songData):
             continue
 
         if songObject["type"] == "STRUM":
+            serialized_objects.append(packStrumObject(songObject))
             continue
 
     object_count = struct.pack("<I", len(serialized_objects))
