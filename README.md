@@ -19,5 +19,5 @@ from ucoolele_song_convert.generate_sources import generateSources
 
 ```bash
 ucoolele-generate-bin song-examples -o bin
-ucoolele-generate-sources core_songs.yaml -b bin -o source
+ucoolele-generate-sources song-examples/example_songs.yaml -o source
 ```

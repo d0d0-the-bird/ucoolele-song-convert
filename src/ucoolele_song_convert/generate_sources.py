@@ -4,6 +4,8 @@ import re
 from datetime import datetime, timezone
 from importlib.resources import files
 
+from ucoolele_song_convert.song_model import Song
+
 
 
 # Utility functions
@@ -23,8 +25,7 @@ def read_template(template_name: str) -> str:
 
 
 # Generator function
-def generateSources(song_blobs, song_metadata):
-    assert len(song_blobs) == len(song_metadata), "Mismatched song data and metadata lengths."
+def generateSources(songs):
 
     HEADER_TEMPLATE = read_template("song_library.h.template")
     SOURCE_TEMPLATE = read_template("song_library.cpp.template")
@@ -33,9 +34,10 @@ def generateSources(song_blobs, song_metadata):
     data_arrays = []
     table_entries = []
 
-    for i, (blob, meta) in enumerate(zip(song_blobs, song_metadata)):
-        shortId = meta['uniqueId'][:7]
-        name = meta['name']
+    for song in songs:
+        blob = song.to_bytes()
+        shortId = song.unique_id[:7]
+        name = song.name
         enum_id = to_enum_id(name, shortId)
         var_name = to_var_name(name, shortId)
         comment = to_comment(name, shortId)
@@ -89,36 +91,32 @@ def generateSources(song_blobs, song_metadata):
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Create sources from song binaries for Ucoolele firmware project")
-    parser.add_argument("core_songs_yaml_path", help="YAML containing paths to BIN song files")
-    parser.add_argument("-b", "--binaries", default="bin", help="Song binaries directory")
+    parser = argparse.ArgumentParser(description="Create sources from song YAML files for Ucoolele firmware project")
+    parser.add_argument("core_songs_yaml_path", help="YAML containing paths to song YAML files")
     parser.add_argument("-o", "--output", default="source", help="Output directory for C++ sources of core songs")
     args = parser.parse_args()
 
     with open(args.core_songs_yaml_path, "r") as f:
         yaml_files = yaml.safe_load(f)
 
-    songBlobs = []
-    allSongsData = []
+    songs = []
     totalCoreBlobSizeB = 0
     for yaml_path in yaml_files:
         yaml_path = Path(yaml_path)
 
         with open(yaml_path, "r") as f:
-            song = yaml.safe_load(f)
-        allSongsData.append(song)
+            song_data = yaml.safe_load(f)
 
-        binPath = Path(args.binaries) / (yaml_path.stem + ".bin")
-        with open(binPath, 'rb') as f :
-            songBlob = f.read()
-        songBlobs.append(songBlob)
+        song = Song.from_yaml_dict(song_data)
+        song_blob = song.to_bytes()
+        songs.append(song)
 
-        print(f"✅ Read {binPath.name} ({len(songBlob)} bytes)")
-        totalCoreBlobSizeB += len(songBlob)
+        print(f"✅ Read {yaml_path.name} ({len(song_blob)} bytes when serialized)")
+        totalCoreBlobSizeB += len(song_blob)
 
     print(f"Total size of the core songs that go to Ucoolele is {totalCoreBlobSizeB} bytes")
 
-    h, cpp = generateSources(songBlobs, allSongsData)
+    h, cpp = generateSources(songs)
 
     output_dir = Path(args.output)
     output_dir.mkdir(parents=True, exist_ok=True)
