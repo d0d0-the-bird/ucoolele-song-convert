@@ -27,6 +27,21 @@ NOTE objects are currently encoded as 16 bytes:
 - uint32_t startTime_ms
 - uint32_t duration_ms
 
+CHORD objects are currently encoded as 20 bytes:
+- uint8_t objectType
+- uint8_t wire1
+- uint8_t wire2
+- uint8_t wire3
+- uint8_t wire4
+- uint8_t wireFinger1
+- uint8_t wireFinger2
+- uint8_t wireFinger3
+- uint8_t wireFinger4
+- uint8_t reserved
+- uint16_t reserved
+- uint32_t startTime_ms
+- uint32_t duration_ms
+
 Object type enum values are defined in firmware and must match the generator.
 
 Build time: {{build_time}}

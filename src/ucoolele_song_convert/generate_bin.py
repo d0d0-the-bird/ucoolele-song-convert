@@ -34,6 +34,18 @@ class SongObjectType(Enum):
     STRUM = 2
 
 
+REQUIRED_SONG_FIELDS = {
+    "uniqueId",
+    "timestamp",
+    "name",
+    "songPlayStyle",
+    "fretColorTable",
+    "fingerColorTable",
+    "songDuration_ms",
+    "objects",
+}
+
+
 def sanitize_string(s, length):
     """Sanitize and pad string to a fixed length."""
     return s.encode("utf-8")[:length].ljust(length, b'\x00')
@@ -41,6 +53,10 @@ def sanitize_string(s, length):
 def scale_color(rgb_float):
     """Convert RGB [0.0–1.0] to [0–255]."""
     return [int(x * 255) for x in rgb_float]
+
+
+def isSongYamlDocument(document):
+    return isinstance(document, dict) and REQUIRED_SONG_FIELDS.issubset(document.keys())
 
 
 # Song blob layout, little-endian:
@@ -66,7 +82,56 @@ def scale_color(rgb_float):
 # - startTime_ms: uint32
 # - duration_ms: uint32
 #
+# CHORD object layout, 20 bytes total:
+# - objectType: uint8
+# - wire1: uint8
+# - wire2: uint8
+# - wire3: uint8
+# - wire4: uint8
+# - wireFinger1: uint8
+# - wireFinger2: uint8
+# - wireFinger3: uint8
+# - wireFinger4: uint8
+# - reserved: uint8
+# - reserved: uint16
+# - startTime_ms: uint32
+# - duration_ms: uint32
+#
 # Object type enum values must match the firmware definitions.
+
+
+def packNoteObject(note):
+    return struct.pack(
+        "<BBHBBBBII",
+        SongObjectType.NOTE.value,
+        note["wire"],
+        note["fret"],
+        NoteName[note["name"]].value,
+        NoteAccidental[note["accidental"]].value,
+        note["octave"],
+        PlayFinger[note["finger"]].value,
+        note["startTime_ms"],
+        note["duration_ms"],
+    )
+
+
+def packChordObject(chord):
+    return struct.pack(
+        "<BBBBBBBBBBHII",
+        SongObjectType.CHORD.value,
+        chord["wire1"],
+        chord["wire2"],
+        chord["wire3"],
+        chord["wire4"],
+        PlayFinger[chord["wireFinger1"]].value,
+        PlayFinger[chord["wireFinger2"]].value,
+        PlayFinger[chord["wireFinger3"]].value,
+        PlayFinger[chord["wireFinger4"]].value,
+        0,
+        0,
+        chord["startTime_ms"],
+        chord["duration_ms"],
+    )
 
 def generateSongBlob(songData):
 
@@ -93,27 +158,21 @@ def generateSongBlob(songData):
 
     song_duration = struct.pack("<I", songData["songDuration_ms"])
 
-    notes = [
-        note for note in songData["objects"]
-        if note["type"] == "NOTE"
-    ]
-    object_count = struct.pack("<I", len(notes))
+    serialized_objects = []
+    for songObject in songData["objects"]:
+        if songObject["type"] == "NOTE":
+            serialized_objects.append(packNoteObject(songObject))
+            continue
 
-    # NOTE objects currently use the BBHBBBBII layout described above.
-    object_bin_data = b""
-    for note in notes:
-        object_bin_data += struct.pack(
-            "<BBHBBBBII",
-            SongObjectType.NOTE.value,
-            note["wire"],
-            note["fret"],
-            NoteName[note["name"]].value,
-            NoteAccidental[note["accidental"]].value,
-            note["octave"],
-            PlayFinger[note["finger"]].value,
-            note["startTime_ms"],
-            note["duration_ms"]
-        )
+        if songObject["type"] == "CHORD":
+            serialized_objects.append(packChordObject(songObject))
+            continue
+
+        if songObject["type"] == "STRUM":
+            continue
+
+    object_count = struct.pack("<I", len(serialized_objects))
+    object_bin_data = b"".join(serialized_objects)
 
     # Build full binary blob
     binary_blob = b"".join([
@@ -154,6 +213,11 @@ def main():
 
         with open(songYaml, "r") as f:
             song = yaml.safe_load(f)
+
+        if not isSongYamlDocument(song):
+            print(f"Skipping {songYaml.name}: not a song YAML document")
+            continue
+
         allSongsData.append(song)
 
         songBlob = generateSongBlob(song)

@@ -49,7 +49,7 @@ def generateSources(song_blobs, song_metadata):
         lines = []
         for i in range(0, len(uint32_list), 4):
             chunk = uint32_list[i:i+4]
-            line = '    ' + ', '.join(f'0x{val:08X}' for val in chunk)  # 4 spaces indent
+            line = '    ' + ', '.join(f'0x{val:08X}' for val in chunk)
             lines.append(line)
         hex_values = ',\n'.join(lines)
 
