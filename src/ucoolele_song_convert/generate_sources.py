@@ -24,6 +24,11 @@ def read_template(template_name: str) -> str:
     return files("ucoolele_song_convert.templates").joinpath(template_name).read_text()
 
 
+def format_timestamp_comment(timestamp: int):
+    decoded = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+    return f"timestamp: {timestamp} ({decoded.strftime('%Y-%m-%d %H:%M:%S UTC')})"
+
+
 def format_row(binary_value: bytes, comment: str):
     if len(binary_value) % 4 != 0:
         raise ValueError(f"Row is not aligned to 4-byte uint32_t values: {comment}")
@@ -62,7 +67,7 @@ def iter_song_rows(song):
     color_block = b"".join(member.binary_value for member in header_members[4:7])
 
     yield header_members[0].binary_value, f"{header_members[0].name}: {header_members[0].pretty_value}"
-    yield header_members[1].binary_value, f"{header_members[1].name}: {header_members[1].pretty_value}"
+    yield header_members[1].binary_value, format_timestamp_comment(header_members[1].pretty_value)
     yield header_members[2].binary_value, f"{header_members[2].name}: {header_members[2].pretty_value}"
     yield header_members[3].binary_value, f"{header_members[3].name}: {header_members[3].pretty_value}"
     yield color_block, "fretColorTable[13], fingerColorTable[5], reserved"
