@@ -24,6 +24,55 @@ def read_template(template_name: str) -> str:
     return files("ucoolele_song_convert.templates").joinpath(template_name).read_text()
 
 
+def format_row(binary_value: bytes, comment: str):
+    if len(binary_value) % 4 != 0:
+        raise ValueError(f"Row is not aligned to 4-byte uint32_t values: {comment}")
+
+    uint32_list = [int.from_bytes(binary_value[i:i+4], byteorder='little') for i in range(0, len(binary_value), 4)]
+    values = ', '.join(f'0x{val:08X}' for val in uint32_list)
+    return f"    {values}, // {comment}"
+
+
+def format_object_comment(song_object):
+    fields = {member.name: member.pretty_value for member in song_object.iter_binary_members()}
+    object_type = fields["objectType"]
+
+    if object_type == "NOTE":
+        return (
+            f"NOTE w={fields['wire']} f={fields['fret']} n={fields['name']} a={fields['accidental']} "
+            f"o={fields['octave']} fi={fields['finger']} startTime={fields['startTime_ms']}ms "
+            f"duration={fields['duration_ms']}ms"
+        )
+
+    if object_type == "CHORD":
+        return (
+            f"CHORD w1={fields['wire1']} w2={fields['wire2']} w3={fields['wire3']} w4={fields['wire4']} "
+            f"f1={fields['wireFinger1']} f2={fields['wireFinger2']} f3={fields['wireFinger3']} f4={fields['wireFinger4']} "
+            f"startTime={fields['startTime_ms']}ms duration={fields['duration_ms']}ms"
+        )
+
+    if object_type == "STRUM":
+        return f"STRUM dir={fields['direction']} startTime={fields['startTime_ms']}ms"
+
+    raise ValueError(f"Unsupported object type for source comment: {object_type}")
+
+
+def iter_song_rows(song):
+    header_members = song.iter_header_binary_members()
+    color_block = b"".join(member.binary_value for member in header_members[4:7])
+
+    yield header_members[0].binary_value, f"{header_members[0].name}: {header_members[0].pretty_value}"
+    yield header_members[1].binary_value, f"{header_members[1].name}: {header_members[1].pretty_value}"
+    yield header_members[2].binary_value, f"{header_members[2].name}: {header_members[2].pretty_value}"
+    yield header_members[3].binary_value, f"{header_members[3].name}: {header_members[3].pretty_value}"
+    yield color_block, "fretColorTable[13], fingerColorTable[5], reserved"
+    yield header_members[7].binary_value, f"{header_members[7].name}: {header_members[7].pretty_value}"
+    yield header_members[8].binary_value, f"{header_members[8].name}: {header_members[8].pretty_value}"
+
+    for song_object in song.objects:
+        yield song_object.to_bytes(), format_object_comment(song_object)
+
+
 # Generator function
 def generateSources(songs):
 
@@ -35,25 +84,14 @@ def generateSources(songs):
     table_entries = []
 
     for song in songs:
-        blob = song.to_bytes()
         shortId = song.unique_id[:7]
         name = song.name
         enum_id = to_enum_id(name, shortId)
         var_name = to_var_name(name, shortId)
         comment = to_comment(name, shortId)
 
-        # Break bytes into uint32_t values
-        if len(blob) % 4 != 0:
-            raise ValueError(f"Blob for '{name}' is not aligned to 4-byte uint32_t values.")
-
-        uint32_list = [int.from_bytes(blob[i:i+4], byteorder='little') for i in range(0, len(blob), 4)]
-
-        lines = []
-        for i in range(0, len(uint32_list), 4):
-            chunk = uint32_list[i:i+4]
-            line = '    ' + ', '.join(f'0x{val:08X}' for val in chunk)
-            lines.append(line)
-        hex_values = ',\n'.join(lines)
+        lines = [format_row(binary_value, row_comment) for binary_value, row_comment in iter_song_rows(song)]
+        hex_values = '\n'.join(lines)
 
         array_def = \
             f"static const uint32_t {var_name}[] =\n" + \
