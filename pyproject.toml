@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ucoolele-song-convert"
-version = "0.1.0"
+version = "0.2.1"
 description = "Convert Ucoolele song YAML files into binaries and generated C++ sources"
 readme = "README.md"
 requires-python = ">=3.9"
