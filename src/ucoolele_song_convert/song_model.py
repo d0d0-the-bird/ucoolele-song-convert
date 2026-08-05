@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from enum import Enum
 import struct
 
+import unicodedata
+
 
 class PlayFinger(Enum):
     NONE = 0
@@ -50,6 +52,43 @@ REQUIRED_SONG_FIELDS = {
     "objects",
 }
 
+CROATIAN_ASCII_MAP = str.maketrans({
+    "Č": "C",
+    "č": "c",
+    "Ć": "C",
+    "ć": "c",
+    "Đ": "Dj",
+    "đ": "dj",
+    "Š": "S",
+    "š": "s",
+    "Ž": "Z",
+    "ž": "z",
+})
+
+def ascii_text(value: str) -> str:
+    value = value.translate(CROATIAN_ASCII_MAP)
+
+    # Fallback for other accented characters, such as é, ü, or ö.
+    return (
+        unicodedata.normalize("NFKD", value)
+        .encode("ascii", "ignore")
+        .decode("ascii")
+    )
+
+def ascii_yaml_values(value):
+    if isinstance(value, str):
+        return ascii_text(value)
+
+    if isinstance(value, list):
+        return [ascii_yaml_values(item) for item in value]
+
+    if isinstance(value, dict):
+        return {
+            key: ascii_yaml_values(item)
+            for key, item in value.items()
+        }
+
+    return value
 
 def sanitize_string(s, length):
     return s.encode("utf-8")[:length].ljust(length, b"\x00")

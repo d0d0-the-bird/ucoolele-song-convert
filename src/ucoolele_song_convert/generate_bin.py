@@ -1,7 +1,7 @@
 from pathlib import Path
 import yaml
 
-from ucoolele_song_convert.song_model import Song, is_song_yaml_document
+from ucoolele_song_convert.song_model import Song, is_song_yaml_document, ascii_yaml_values
 
 def generateSongBlob(songData):
     return Song.from_yaml_dict(songData).to_bytes()
@@ -25,8 +25,8 @@ def main():
         if not songYaml.is_file():
             continue
 
-        with open(songYaml, "r") as f:
-            song = yaml.safe_load(f)
+        with open(songYaml, "r", encoding="utf-8") as f:
+            song = ascii_yaml_values(yaml.safe_load(f))
 
         if not is_song_yaml_document(song):
             print(f"Skipping {songYaml.name}: not a song YAML document")

@@ -4,7 +4,7 @@ import re
 from datetime import datetime, timezone
 from importlib.resources import files
 
-from ucoolele_song_convert.song_model import Song
+from ucoolele_song_convert.song_model import Song, ascii_yaml_values
 
 
 
@@ -147,8 +147,8 @@ def main():
     for yaml_path in yaml_files:
         yaml_path = Path(yaml_path)
 
-        with open(yaml_path, "r") as f:
-            song_data = yaml.safe_load(f)
+        with open(yaml_path, "r", encoding="utf-8") as f:
+            song_data = ascii_yaml_values(yaml.safe_load(f))
 
         song = Song.from_yaml_dict(song_data)
         song_blob = song.to_bytes()
