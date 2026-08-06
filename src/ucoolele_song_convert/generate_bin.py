@@ -25,8 +25,8 @@ def main():
         if not songYaml.is_file() or songYaml.suffix.lower() not in {".yaml", ".yml"}:
             continue
 
-        with open(songYaml, "r", encoding="utf-8") as f:
-            song = ascii_yaml_values(yaml.safe_load(f))
+        with open(songYaml, "r") as f:
+            song = yaml.safe_load(f)
 
         if not is_song_yaml_document(song):
             print(f"Skipping {songYaml.name}: not a song YAML document")
