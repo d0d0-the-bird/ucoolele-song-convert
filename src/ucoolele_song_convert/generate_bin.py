@@ -1,7 +1,7 @@
 from pathlib import Path
 import yaml
 
-from ucoolele_song_convert.song_model import Song, is_song_yaml_document, ascii_yaml_values
+from ucoolele_song_convert.song_model import Song, is_song_yaml_document
 
 def generateSongBlob(songData):
     return Song.from_yaml_dict(songData).to_bytes()
