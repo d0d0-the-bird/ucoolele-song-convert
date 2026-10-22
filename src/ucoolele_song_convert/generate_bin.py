@@ -22,7 +22,7 @@ def main():
 
     totalCoreBlobSizeB = 0
     for songYaml in songsDir.iterdir():
-        if not songYaml.is_file():
+        if not songYaml.is_file() or songYaml.suffix.lower() not in {".yaml", ".yml"}:
             continue
 
         with open(songYaml, "r") as f:
